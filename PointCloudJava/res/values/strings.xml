@@ -46,5 +46,10 @@
     <string name="pose_invalid">"invalid"</string>
     <string name="pose_unknown">"unknown"</string>
     <string name="latest_adf_is">", Latest ADF is: "</string>
+    <!-- My strings-->
+    <string name="fileWritten">"File written to SD card :"</string>
+    <string name="autoMode">"Auto Mode"</string>
+    <string name="takeSnap">"Take Snapshot"</string>
+    <!-- End of My strings-->
 
 </resources>

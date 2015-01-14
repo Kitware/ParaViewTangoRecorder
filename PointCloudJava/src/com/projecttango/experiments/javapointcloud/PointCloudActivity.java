@@ -26,25 +26,35 @@ import com.google.atap.tangoservice.TangoInvalidException;
 import com.google.atap.tangoservice.TangoOutOfDateException;
 import com.google.atap.tangoservice.TangoPoseData;
 import com.google.atap.tangoservice.TangoXyzIjData;
+import com.projecttango.tangoutils.ModelMatCalculator;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.opengl.GLSurfaceView;
+import android.opengl.Matrix;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 /**
  * Main Activity class for the Point Cloud Sample. Handles the connection to the
@@ -86,6 +96,16 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private float mCurrentTimeStamp;
     private String mServiceVersion;
     private boolean mIsTangoServiceConnected;
+
+    // My variables
+    private Button mTakeSnapButton;
+    private TextView mFilesWrittenToSDCardTextView;
+    private Switch mAutoModeSwitch;
+
+    private String mFilename;
+    private int mNumberOfFilesWritten;
+    private Boolean mTimeToTakeSnap;
+    private Boolean mAutoMode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,6 +156,24 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mServiceVersion = mConfig.getString("tango_service_library_version");
         mTangoServiceVersionTextView.setText(mServiceVersion);
         mIsTangoServiceConnected = false;
+
+        // My initializations
+        mTakeSnapButton = (Button) findViewById(R.id.take_snap_button);
+        mTakeSnapButton.setOnClickListener(this);
+        mFilesWrittenToSDCardTextView = (TextView) findViewById(R.id.fileWritten);
+        mAutoModeSwitch = (Switch) findViewById(R.id.auto_mode_switch);
+        mAutoModeSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                mAutoMode = isChecked;
+            }
+        });
+
+        mFilename = "";
+        mNumberOfFilesWritten = 0;
+        mTimeToTakeSnap = false;
+        mAutoMode = false;
+        mAutoModeSwitch.setChecked(false);
+        // End of My initializations
     }
 
     @Override
@@ -215,9 +253,12 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         case R.id.top_down_button:
             mRenderer.setTopDownView();
             break;
+        case R.id.take_snap_button:
+            mTimeToTakeSnap = true;
+            break;
         default:
             Log.w(TAG, "Unrecognized button click.");
-            return;
+            break;
         }
     }
 
@@ -308,8 +349,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                         } else if (pose.statusCode == TangoPoseData.POSE_INVALID) {
                             mPoseStatusTextView.setText(R.string.pose_invalid);
                         } else if (pose.statusCode == TangoPoseData.POSE_INITIALIZING) {
-                            mPoseStatusTextView
-                                    .setText(R.string.pose_initializing);
+                            mPoseStatusTextView.setText(R.string.pose_initializing);
                         } else if (pose.statusCode == TangoPoseData.POSE_UNKNOWN) {
                             mPoseStatusTextView.setText(R.string.pose_unknown);
                         }
@@ -327,12 +367,16 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 FileInputStream fileStream = new FileInputStream(
                         xyzIj.xyzParcelFileDescriptor.getFileDescriptor());
                 try {
-                    fileStream.read(buffer,
-                            xyzIj.xyzParcelFileDescriptorOffset, buffer.length);
+                    fileStream.read(buffer, xyzIj.xyzParcelFileDescriptorOffset, buffer.length);
                     fileStream.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+
+                // My writing to file function
+                writePointCloudToFile(xyzIj, buffer, framePairs);
+                // End of My writing to file function
+
                 try {
                     TangoPoseData pointCloudPose = mTango.getPoseAtTime(
                             mCurrentTimeStamp, framePairs.get(0));
@@ -370,6 +414,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                         mAverageZTextView.setText(""
                                 + threeDec.format(mRenderer.getPointCloud()
                                         .getAverageZ()));
+                        // My GUI updates
+                        mFilesWrittenToSDCardTextView.setText(""+
+                                String.valueOf(mNumberOfFilesWritten)+"\n"+mFilename);
+                        // End of My GUI updates
                     }
                 });
             }
@@ -386,4 +434,64 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             }
         });
     }
+
+    // My function
+    // that writes the XYZ points to .vtk files
+    private void writePointCloudToFile(TangoXyzIjData xyzIj, byte[] buffer, ArrayList<TangoCoordinateFramePair> framePairs) {
+
+        // Saving the frame or not, depending on the current mode.
+        if(!mAutoMode && mTimeToTakeSnap  || mAutoMode && count%10 == 0) {
+
+            ByteBuffer myBuffer = ByteBuffer.allocate(xyzIj.xyzCount * 3 * 4);
+            myBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
+
+            Calendar rightNow = Calendar.getInstance();
+            int month = rightNow.get(Calendar.MONTH);
+            int day = rightNow.get(Calendar.DAY_OF_MONTH);
+            int hour = rightNow.get(Calendar.HOUR_OF_DAY);
+            int minute = rightNow.get(Calendar.MINUTE);
+            int sec = rightNow.get(Calendar.SECOND);
+            int milliSec = rightNow.get(Calendar.MILLISECOND);
+
+            File sdCard = Environment.getExternalStorageDirectory();
+            File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
+            mFilename = "pointCloud-(" + month+1 + "-" + day + ")-" + hour + ":" + minute + ":" + sec + "::" + milliSec + ".vtk";
+            File file = new File(dir, mFilename);
+
+
+            //TODO : Write data in binary to improve writing speed
+            try {
+                // get external storage file reference
+                FileWriter writer = new FileWriter(file);
+                // Writes the content to the file
+                writer.write("# vtk DataFile Version 3.0\n" +
+                        "vtk output\n" +
+                        "ASCII\n" +
+                        "DATASET POLYDATA\n" +
+                        "POINTS " + xyzIj.xyzCount + " float\n");
+
+                for (int i = 0; i < xyzIj.xyzCount; i++) {
+
+                    writer.write(String.valueOf(myBuffer.getFloat(3 * i * 4)) + " " +
+                            String.valueOf(myBuffer.getFloat((3 * i + 1) * 4)) + " " +
+                            String.valueOf(myBuffer.getFloat((3 * i + 2) * 4)) + " ");
+                    if((i+1)%3 ==0) {
+                        writer.write("\n");
+                    }
+                }
+
+                writer.write("\n\nVERTICES 1 "+String.valueOf(xyzIj.xyzCount+1)+"\n"+xyzIj.xyzCount);
+                for (int i = 0; i < xyzIj.xyzCount; i++) {
+                    writer.write(" "+i);
+                }
+                writer.close();
+                mNumberOfFilesWritten++;
+                mTimeToTakeSnap = false;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    // End of My function
 }
