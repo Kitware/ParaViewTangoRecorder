@@ -55,6 +55,7 @@ import java.nio.ByteOrder;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Random;
 
 /**
  * Main Activity class for the Point Cloud Sample. Handles the connection to the
@@ -99,6 +100,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     // My variables
     private Button mTakeSnapButton;
+    private Button mNewFileGroupButton;
     private TextView mFilesWrittenToSDCardTextView;
     private Switch mAutoModeSwitch;
 
@@ -106,6 +108,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private int mNumberOfFilesWritten;
     private Boolean mTimeToTakeSnap;
     private Boolean mAutoMode;
+    private int myRandomNumber;
+    private Random mRandGenerator;
+    // End of My variables
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -160,6 +165,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         // My initializations
         mTakeSnapButton = (Button) findViewById(R.id.take_snap_button);
         mTakeSnapButton.setOnClickListener(this);
+        mNewFileGroupButton = (Button) findViewById(R.id.new_file_group);
+        mNewFileGroupButton.setOnClickListener(this);
         mFilesWrittenToSDCardTextView = (TextView) findViewById(R.id.fileWritten);
         mAutoModeSwitch = (Switch) findViewById(R.id.auto_mode_switch);
         mAutoModeSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -173,6 +180,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mTimeToTakeSnap = false;
         mAutoMode = false;
         mAutoModeSwitch.setChecked(false);
+        mRandGenerator = new Random();
+        myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
+
         // End of My initializations
     }
 
@@ -244,21 +254,24 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-        case R.id.first_person_button:
-            mRenderer.setFirstPersonView();
-            break;
-        case R.id.third_person_button:
-            mRenderer.setThirdPersonView();
-            break;
-        case R.id.top_down_button:
-            mRenderer.setTopDownView();
-            break;
-        case R.id.take_snap_button:
-            mTimeToTakeSnap = true;
-            break;
-        default:
-            Log.w(TAG, "Unrecognized button click.");
-            break;
+            case R.id.first_person_button:
+                mRenderer.setFirstPersonView();
+                break;
+            case R.id.third_person_button:
+                mRenderer.setThirdPersonView();
+                break;
+            case R.id.top_down_button:
+                mRenderer.setTopDownView();
+                break;
+            case R.id.take_snap_button:
+                mTimeToTakeSnap = true;
+                break;
+            case R.id.new_file_group:
+                newFileGroup_Clicked();
+                break;
+            default:
+                Log.w(TAG, "Unrecognized button click.");
+                break;
         }
     }
 
@@ -435,9 +448,11 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         });
     }
 
-    // My function
-    // that writes the XYZ points to .vtk files
-    private void writePointCloudToFile(TangoXyzIjData xyzIj, byte[] buffer, ArrayList<TangoCoordinateFramePair> framePairs) {
+    // My functions
+
+    // This function writes the XYZ points to .vtk files
+    private void writePointCloudToFile(TangoXyzIjData xyzIj, byte[] buffer,
+                                       ArrayList<TangoCoordinateFramePair> framePairs) {
 
         // Saving the frame or not, depending on the current mode.
         if(!mAutoMode && mTimeToTakeSnap  || mAutoMode && count%10 == 0) {
@@ -446,17 +461,19 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             myBuffer.order(ByteOrder.LITTLE_ENDIAN);
             myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
 
-            Calendar rightNow = Calendar.getInstance();
-            int month = rightNow.get(Calendar.MONTH);
-            int day = rightNow.get(Calendar.DAY_OF_MONTH);
-            int hour = rightNow.get(Calendar.HOUR_OF_DAY);
-            int minute = rightNow.get(Calendar.MINUTE);
-            int sec = rightNow.get(Calendar.SECOND);
-            int milliSec = rightNow.get(Calendar.MILLISECOND);
+//            Calendar rightNow = Calendar.getInstance();
+//            int month = rightNow.get(Calendar.MONTH);
+//            int day = rightNow.get(Calendar.DAY_OF_MONTH);
+//            int hour = rightNow.get(Calendar.HOUR_OF_DAY);
+//            int minute = rightNow.get(Calendar.MINUTE);
+//            int sec = rightNow.get(Calendar.SECOND);
+//            int milliSec = rightNow.get(Calendar.MILLISECOND);
 
             File sdCard = Environment.getExternalStorageDirectory();
             File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
-            mFilename = "pointCloud-(" + month+1 + "-" + day + ")-" + hour + ":" + minute + ":" + sec + "::" + milliSec + ".vtk";
+            mFilename = "pc-" +  Integer.toHexString(myRandomNumber) + "-" +
+                    String.format("%03d", mNumberOfFilesWritten+1)  + ".vtk";
+
             File file = new File(dir, mFilename);
 
 
@@ -481,7 +498,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                     }
                 }
 
-                writer.write("\n\nVERTICES 1 "+String.valueOf(xyzIj.xyzCount+1)+"\n"+xyzIj.xyzCount);
+                writer.write("\n\nVERTICES 1 " + String.valueOf(xyzIj.xyzCount+1) + "\n" +
+                        xyzIj.xyzCount);
                 for (int i = 0; i < xyzIj.xyzCount; i++) {
                     writer.write(" "+i);
                 }
@@ -493,5 +511,12 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             }
         }
     }
-    // End of My function
+
+    // This function find a new random number to create a new group of files, with the same name
+    private void newFileGroup_Clicked() {
+        mNumberOfFilesWritten = 0;
+        myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
+    }
+
+    // End of My functions
 }
