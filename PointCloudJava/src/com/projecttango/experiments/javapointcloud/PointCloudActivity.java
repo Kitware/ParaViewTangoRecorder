@@ -55,6 +55,7 @@ import java.nio.ByteOrder;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -100,7 +101,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     // My variables
     private Button mTakeSnapButton;
-    private Button mNewFileGroupButton;
+    private Button mFinishSequenceButton;
+    private Button mStartSequenceButton;
     private TextView mFilesWrittenToSDCardTextView;
     private Switch mAutoModeSwitch;
 
@@ -110,6 +112,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private Boolean mAutoMode;
     private int myRandomNumber;
     private Random mRandGenerator;
+    private ArrayList<float[]> mPosePositionBuffer;
+    private ArrayList<float[]> mPoseOrientationBuffer;
+    private int mNumPoseInSequence;
+    boolean mRecordingPose;
     // End of My variables
 
     @Override
@@ -165,13 +171,19 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         // My initializations
         mTakeSnapButton = (Button) findViewById(R.id.take_snap_button);
         mTakeSnapButton.setOnClickListener(this);
-        mNewFileGroupButton = (Button) findViewById(R.id.new_file_group);
-        mNewFileGroupButton.setOnClickListener(this);
+        mTakeSnapButton.setEnabled(false);
+        mFinishSequenceButton = (Button) findViewById(R.id.finish_sequence);
+        mFinishSequenceButton.setOnClickListener(this);
+        mFinishSequenceButton.setEnabled(false);
+        mStartSequenceButton = (Button) findViewById(R.id.start_sequence);
+        mStartSequenceButton.setOnClickListener(this);
         mFilesWrittenToSDCardTextView = (TextView) findViewById(R.id.fileWritten);
         mAutoModeSwitch = (Switch) findViewById(R.id.auto_mode_switch);
+        mAutoModeSwitch.setEnabled(false);
         mAutoModeSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 mAutoMode = isChecked;
+                mRecordingPose = true;
             }
         });
 
@@ -182,7 +194,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mAutoModeSwitch.setChecked(false);
         mRandGenerator = new Random();
         myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
-
+        mPosePositionBuffer = new ArrayList<float[]>();
+        mPoseOrientationBuffer = new ArrayList<float[]>();
+        mNumPoseInSequence = 0;
+        mRecordingPose = false;
         // End of My initializations
     }
 
@@ -266,8 +281,11 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             case R.id.take_snap_button:
                 mTimeToTakeSnap = true;
                 break;
-            case R.id.new_file_group:
-                newFileGroup_Clicked();
+            case R.id.start_sequence:
+                startSequence_Clicked();
+                break;
+            case R.id.finish_sequence:
+                finishSequence_Clicked();
                 break;
             default:
                 Log.w(TAG, "Unrecognized button click.");
@@ -332,6 +350,15 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 }
                 count++;
                 mPreviousPoseStatus = pose.statusCode;
+
+                // My pose buffering
+                if (mRecordingPose && pose.statusCode == TangoPoseData.POSE_VALID) {
+                    mPosePositionBuffer.add(mNumPoseInSequence,pose.getTranslationAsFloats());
+                    mPoseOrientationBuffer.add(mNumPoseInSequence,pose.getRotationAsFloats());
+                    mNumPoseInSequence++;
+                }
+                //End of My pose buffering
+
                 mRenderer.getModelMatCalculator().updateModelMatrix(
                         pose.getTranslationAsFloats(),
                         pose.getRotationAsFloats());
@@ -513,9 +540,83 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     }
 
     // This function find a new random number to create a new group of files, with the same name
-    private void newFileGroup_Clicked() {
+    private void finishSequence_Clicked() {
+        mRecordingPose = false;
+        writePoseToFile(mNumPoseInSequence);
         mNumberOfFilesWritten = 0;
         myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
+        mNumPoseInSequence = 0;
+        mPoseOrientationBuffer.clear(); // Might not be necessary, to remove for performance
+        mPoseOrientationBuffer.clear(); // Might not be necessary, to remove for performance
+        mFinishSequenceButton.setEnabled(false);
+        mStartSequenceButton.setEnabled(true);
+        mTakeSnapButton.setEnabled(false);
+        mAutoModeSwitch.setEnabled(false);
+    }
+
+    // This function find a new random number to create a new group of files, with the same name
+    private void startSequence_Clicked() {
+        mRecordingPose = true;
+        mTakeSnapButton.setEnabled(true);
+        mAutoModeSwitch.setEnabled(true);
+        mFinishSequenceButton.setEnabled(true);
+        mStartSequenceButton.setEnabled(false);
+    }
+
+
+
+    private void writePoseToFile(int numPoints) {
+
+        File sdCard = Environment.getExternalStorageDirectory();
+        File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
+        String poseFileName = "pc-" +  Integer.toHexString(myRandomNumber) + "-poses.vtk";
+        File file = new File(dir, poseFileName);
+
+        //TODO : Write data in binary to improve writing speed
+        try {
+            // get external storage file reference
+            FileWriter writer = new FileWriter(file);
+            // Writes the content to the file
+            writer.write("# vtk DataFile Version 3.0\n" +
+                    "vtk output\n" +
+                    "ASCII\n" +
+                    "DATASET POLYDATA\n" +
+                    "POINTS " + numPoints + " float\n");
+
+            for (int i = 0; i < numPoints; i++) {
+
+                writer.write(String.valueOf(mPosePositionBuffer.get(i)[0]) + " " +
+                        String.valueOf(mPosePositionBuffer.get(i)[1]) + " " +
+                        String.valueOf(mPosePositionBuffer.get(i)[2]) + " ");
+                if((i+1)%3 ==0) {
+                    writer.write("\n");
+                }
+            }
+
+            writer.write("\n\nLINES 1 " + String.valueOf(numPoints+1) + "\n" +
+                    numPoints);
+            for (int i = 0; i < numPoints; i++) {
+                writer.write(" "+i);
+            }
+
+            writer.write("\n\nPOINT_DATA " + String.valueOf(numPoints) + "\n" +
+                    "FIELD FieldData 1\n" +
+                    "orientation 4 " + String.valueOf(numPoints) + " float\n" );
+
+            for (int i = 0; i < numPoints; i++) {
+
+                writer.write(String.valueOf(mPoseOrientationBuffer.get(i)[0]) + " " +
+                        String.valueOf(mPoseOrientationBuffer.get(i)[1]) + " " +
+                        String.valueOf(mPoseOrientationBuffer.get(i)[2]) + " " +
+                        String.valueOf(mPoseOrientationBuffer.get(i)[3]));
+                if((i+1)%3 ==0) {
+                    writer.write("\n");
+                }
+            }
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // End of My functions

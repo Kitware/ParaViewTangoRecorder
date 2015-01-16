@@ -50,7 +50,8 @@
     <string name="fileWritten">"File written to SD card :"</string>
     <string name="autoMode">"Auto Mode"</string>
     <string name="takeSnap">"Take Snapshot"</string>
-    <string name="newFileGroup">"New File Group"</string>
+    <string name="finishSequence">"Finish Sequence"</string>
+    <string name="startSequence">"Start Sequence"</string>
     <!-- End of My strings-->
 
 </resources>

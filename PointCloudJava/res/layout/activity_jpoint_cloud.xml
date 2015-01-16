@@ -268,10 +268,10 @@
         android:layout_alignEnd="@+id/first_person_button" />
 
     <Button
-        android:layout_width="wrap_content"
+        android:layout_width="160dp"
         android:layout_height="wrap_content"
-        android:text="@string/newFileGroup"
-        android:id="@+id/new_file_group"
+        android:text="@string/finishSequence"
+        android:id="@+id/finish_sequence"
         android:layout_above="@+id/auto_mode_switch"
         android:layout_alignParentStart="true" />
 
@@ -286,5 +286,13 @@
         android:layout_alignParentLeft="true"
         android:layout_marginLeft="5dp"
         android:layout_below="@+id/third_person_button" />
+
+    <Button
+        android:layout_width="160dp"
+        android:layout_height="wrap_content"
+        android:text="@string/startSequence"
+        android:id="@+id/start_sequence"
+        android:layout_above="@+id/finish_sequence"
+        android:layout_alignParentStart="true" />
 
 </RelativeLayout>
