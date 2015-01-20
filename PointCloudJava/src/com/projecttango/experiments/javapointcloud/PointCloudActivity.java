@@ -405,7 +405,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 }
 
                 // My writing to file function
-                writePointCloudToFile(xyzIj, buffer, framePairs);
+                // Saving the frame or not, depending on the current mode.
+                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && count % 10 == 0 ) ) {
+                    writePointCloudToFile(xyzIj, buffer, framePairs);
+                }
                 // End of My writing to file function
 
                 try {
@@ -506,12 +509,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private void writePointCloudToFile(TangoXyzIjData xyzIj, byte[] buffer,
                                        ArrayList<TangoCoordinateFramePair> framePairs) {
 
-        // Saving the frame or not, depending on the current mode.
-        if(!mAutoMode && mTimeToTakeSnap  || mAutoMode && count%10 == 0) {
-
-            ByteBuffer myBuffer = ByteBuffer.allocate(xyzIj.xyzCount * 3 * 4);
-            myBuffer.order(ByteOrder.LITTLE_ENDIAN);
-            myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
+        ByteBuffer myBuffer = ByteBuffer.allocate(xyzIj.xyzCount * 3 * 4);
+        myBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
 
 //            Calendar rightNow = Calendar.getInstance();
 //            int month = rightNow.get(Calendar.MONTH);
@@ -521,52 +521,48 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 //            int sec = rightNow.get(Calendar.SECOND);
 //            int milliSec = rightNow.get(Calendar.MILLISECOND);
 
-            File sdCard = Environment.getExternalStorageDirectory();
-            File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
-            mFilename = "pc-" +  Integer.toHexString(myRandomNumber) + "-" +
-                    String.format("%03d", mNumberOfFilesWritten+1)  + ".vtk";
-
-            File file = new File(dir, mFilename);
+        File sdCard = Environment.getExternalStorageDirectory();
+        File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
+        mFilename = "pc-" + Integer.toHexString(myRandomNumber) + "-" +
+                String.format("%03d", mNumberOfFilesWritten) + ".vtk";
 
 
-            //TODO : Write data in binary to improve writing speed
-            try {
-                // get external storage file reference
-                FileWriter writer = new FileWriter(file);
-                // Writes the content to the file
-                writer.write("# vtk DataFile Version 3.0\n" +
-                        "vtk output\n" +
-                        "ASCII\n" +
-                        "DATASET POLYDATA\n" +
-                        "POINTS " + xyzIj.xyzCount + " float\n");
+        File file = new File(dir, mFilename);
 
-                for (int i = 0; i < xyzIj.xyzCount; i++) {
 
-                    writer.write(String.valueOf(myBuffer.getFloat(3 * i * 4)) + " " +
-                            String.valueOf(myBuffer.getFloat((3 * i + 1) * 4)) + " " +
-                            String.valueOf(myBuffer.getFloat((3 * i + 2) * 4)) + " ");
-                    if((i+1)%3 ==0) {
-                        writer.write("\n");
-                    }
+        //TODO : Write data in binary to improve performance
+        try {
+            // get external storage file reference
+            FileWriter writer = new FileWriter(file);
+            // Writes the content to the file
+            writer.write("# vtk DataFile Version 3.0\n" +
+                    "vtk output\n" +
+                    "ASCII\n" +
+                    "DATASET POLYDATA\n" +
+                    "POINTS " + xyzIj.xyzCount + " float\n");
+
+            for (int i = 0; i < xyzIj.xyzCount; i++) {
+
+                writer.write(String.valueOf(myBuffer.getFloat(3 * i * 4)) + " " +
+                        String.valueOf(myBuffer.getFloat((3 * i + 1) * 4)) + " " +
+                        String.valueOf(myBuffer.getFloat((3 * i + 2) * 4)) + " ");
+                if ((i + 1) % 3 == 0) {
+                    writer.write("\n");
                 }
-
-                writer.write("\n\nVERTICES 1 " + String.valueOf(xyzIj.xyzCount+1) + "\n" +
-                        xyzIj.xyzCount);
-                for (int i = 0; i < xyzIj.xyzCount; i++) {
-                    writer.write(" "+i);
-                }
-                writer.close();
-                mNumberOfFilesWritten++;
-                mTimeToTakeSnap = false;
-            } catch (IOException e) {
-                e.printStackTrace();
             }
+
+            writer.write("\n\nVERTICES 1 " + String.valueOf(xyzIj.xyzCount + 1) + "\n" +
+                    xyzIj.xyzCount);
+            for (int i = 0; i < xyzIj.xyzCount; i++) {
+                writer.write(" " + i);
+            }
+            writer.close();
+            mNumberOfFilesWritten++;
+            mTimeToTakeSnap = false;
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
-
-    }
-
-
 
     private void writePoseToFile(int numPoints) {
 
@@ -575,7 +571,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         String poseFileName = "pc-" +  Integer.toHexString(myRandomNumber) + "-poses.vtk";
         File file = new File(dir, poseFileName);
 
-        //TODO : Write data in binary to improve writing speed
+        //TODO : Write data in binary to improve performance
         try {
             // get external storage file reference
             FileWriter writer = new FileWriter(file);
