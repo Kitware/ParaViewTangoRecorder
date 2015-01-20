@@ -264,16 +264,8 @@
         android:layout_height="wrap_content"
         android:text="@string/takeSnap"
         android:id="@+id/take_snap_button"
-        android:layout_above="@+id/first_person_button"
-        android:layout_alignEnd="@+id/first_person_button" />
-
-    <Button
-        android:layout_width="160dp"
-        android:layout_height="wrap_content"
-        android:text="@string/finishSequence"
-        android:id="@+id/finish_sequence"
-        android:layout_above="@+id/auto_mode_switch"
-        android:layout_alignParentStart="true" />
+        android:layout_alignTop="@+id/first_person_button"
+        android:layout_alignStart="@+id/auto_mode_switch" />
 
     <Switch
         android:layout_width="wrap_content"
@@ -285,14 +277,17 @@
         android:checked="false"
         android:layout_alignParentLeft="true"
         android:layout_marginLeft="5dp"
-        android:layout_below="@+id/third_person_button" />
+        android:layout_below="@+id/third_person_button"
+        android:textSize="18dp" />
 
-    <Button
-        android:layout_width="160dp"
-        android:layout_height="wrap_content"
-        android:text="@string/startSequence"
-        android:id="@+id/start_sequence"
-        android:layout_above="@+id/finish_sequence"
-        android:layout_alignParentStart="true" />
+    <Switch
+        android:layout_width="wrap_content"
+        android:layout_height="50dp"
+        android:id="@+id/record_switch"
+        android:checked="false"
+        android:text="@string/record"
+        android:layout_alignTop="@+id/third_person_button"
+        android:layout_alignStart="@+id/auto_mode_switch"
+        android:textSize="18dp" />
 
 </RelativeLayout>

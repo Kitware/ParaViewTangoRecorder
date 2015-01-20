@@ -101,10 +101,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     // My variables
     private Button mTakeSnapButton;
-    private Button mFinishSequenceButton;
-    private Button mStartSequenceButton;
     private TextView mFilesWrittenToSDCardTextView;
     private Switch mAutoModeSwitch;
+    private Switch mRecordSwitch;
 
     private String mFilename;
     private int mNumberOfFilesWritten;
@@ -115,7 +114,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private ArrayList<float[]> mPosePositionBuffer;
     private ArrayList<float[]> mPoseOrientationBuffer;
     private int mNumPoseInSequence;
-    boolean mRecordingPose;
+    boolean mIsRecording;
     // End of My variables
 
     @Override
@@ -171,19 +170,17 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         // My initializations
         mTakeSnapButton = (Button) findViewById(R.id.take_snap_button);
         mTakeSnapButton.setOnClickListener(this);
-        mTakeSnapButton.setEnabled(false);
-        mFinishSequenceButton = (Button) findViewById(R.id.finish_sequence);
-        mFinishSequenceButton.setOnClickListener(this);
-        mFinishSequenceButton.setEnabled(false);
-        mStartSequenceButton = (Button) findViewById(R.id.start_sequence);
-        mStartSequenceButton.setOnClickListener(this);
         mFilesWrittenToSDCardTextView = (TextView) findViewById(R.id.fileWritten);
         mAutoModeSwitch = (Switch) findViewById(R.id.auto_mode_switch);
-        mAutoModeSwitch.setEnabled(false);
         mAutoModeSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                mAutoMode = isChecked;
-                mRecordingPose = true;
+                autoMode_SwitchChanged(isChecked);
+            }
+        });
+        mRecordSwitch = (Switch) findViewById(R.id.record_switch);
+        mRecordSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                record_SwitchChanged(isChecked);
             }
         });
 
@@ -192,12 +189,12 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mTimeToTakeSnap = false;
         mAutoMode = false;
         mAutoModeSwitch.setChecked(false);
+        mIsRecording = false;
+        mRecordSwitch.setChecked(false);
         mRandGenerator = new Random();
-        myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
         mPosePositionBuffer = new ArrayList<float[]>();
         mPoseOrientationBuffer = new ArrayList<float[]>();
         mNumPoseInSequence = 0;
-        mRecordingPose = false;
         // End of My initializations
     }
 
@@ -279,13 +276,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 mRenderer.setTopDownView();
                 break;
             case R.id.take_snap_button:
-                mTimeToTakeSnap = true;
-                break;
-            case R.id.start_sequence:
-                startSequence_Clicked();
-                break;
-            case R.id.finish_sequence:
-                finishSequence_Clicked();
+                takeSnapshot_ButtonClicked();
                 break;
             default:
                 Log.w(TAG, "Unrecognized button click.");
@@ -352,9 +343,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 mPreviousPoseStatus = pose.statusCode;
 
                 // My pose buffering
-                if (mRecordingPose && pose.statusCode == TangoPoseData.POSE_VALID) {
-                    mPosePositionBuffer.add(mNumPoseInSequence,pose.getTranslationAsFloats());
-                    mPoseOrientationBuffer.add(mNumPoseInSequence,pose.getRotationAsFloats());
+                if (mIsRecording && pose.statusCode == TangoPoseData.POSE_VALID) {
+                    mPosePositionBuffer.add(mNumPoseInSequence, pose.getTranslationAsFloats());
+                    mPoseOrientationBuffer.add(mNumPoseInSequence, pose.getRotationAsFloats());
                     mNumPoseInSequence++;
                 }
                 //End of My pose buffering
@@ -453,10 +444,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                                 + threeDec.format(frameDelta));
                         mAverageZTextView.setText(""
                                 + threeDec.format(mRenderer.getPointCloud()
-                                        .getAverageZ()));
+                                .getAverageZ()));
                         // My GUI updates
-                        mFilesWrittenToSDCardTextView.setText(""+
-                                String.valueOf(mNumberOfFilesWritten)+"\n"+mFilename);
+                        mFilesWrittenToSDCardTextView.setText("" +
+                                String.valueOf(mNumberOfFilesWritten) + "\n" + mFilename);
                         // End of My GUI updates
                     }
                 });
@@ -475,7 +466,41 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         });
     }
 
+
     // My functions
+
+    // This function is called when the Take Snapshot button is clicked
+    private void takeSnapshot_ButtonClicked() {
+        if(!mIsRecording) {
+            myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
+            mNumberOfFilesWritten = 0;
+        }
+        mTimeToTakeSnap=true;
+    }
+
+    // This function is called when the Auto Mode Switch is changed
+    private void autoMode_SwitchChanged(boolean isChecked) {
+        mAutoMode = isChecked;
+    }
+
+    // This function is called when the Record Switch is changed
+    private void record_SwitchChanged(boolean isChecked) {
+        mIsRecording = isChecked;
+        // Start Recording
+        if (mIsRecording) {
+            // Generate a new random number to create a new group of files
+            myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
+            mNumberOfFilesWritten = 0;
+        }
+        // Finish Recording
+        else {
+            // Stop the Pose Recording, and write them to a file.
+            writePoseToFile(mNumPoseInSequence);
+            mNumPoseInSequence = 0;
+            mPoseOrientationBuffer.clear(); // TODO: Might not be necessary, remove for performance
+            mPoseOrientationBuffer.clear(); // TODO: Might not be necessary, remove for performance
+        }
+    }
 
     // This function writes the XYZ points to .vtk files
     private void writePointCloudToFile(TangoXyzIjData xyzIj, byte[] buffer,
@@ -539,28 +564,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         }
     }
 
-    // This function find a new random number to create a new group of files, with the same name
-    private void finishSequence_Clicked() {
-        mRecordingPose = false;
-        writePoseToFile(mNumPoseInSequence);
-        mNumberOfFilesWritten = 0;
-        myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
-        mNumPoseInSequence = 0;
-        mPoseOrientationBuffer.clear(); // Might not be necessary, to remove for performance
-        mPoseOrientationBuffer.clear(); // Might not be necessary, to remove for performance
-        mFinishSequenceButton.setEnabled(false);
-        mStartSequenceButton.setEnabled(true);
-        mTakeSnapButton.setEnabled(false);
-        mAutoModeSwitch.setEnabled(false);
-    }
-
-    // This function find a new random number to create a new group of files, with the same name
-    private void startSequence_Clicked() {
-        mRecordingPose = true;
-        mTakeSnapButton.setEnabled(true);
-        mAutoModeSwitch.setEnabled(true);
-        mFinishSequenceButton.setEnabled(true);
-        mStartSequenceButton.setEnabled(false);
     }
 
 
