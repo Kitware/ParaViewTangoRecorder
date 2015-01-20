@@ -90,7 +90,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private Button mThirdPersonButton;
     private Button mTopDownButton;
 
-    private int count;
+    private int mValidPoseCallbackCount;
     private int mPreviousPoseStatus;
     private float mDeltaTime;
     private float mPosePreviousTimeStamp;
@@ -115,6 +115,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private ArrayList<float[]> mPoseOrientationBuffer;
     private int mNumPoseInSequence;
     boolean mIsRecording;
+    private int mXyzIjCallbackCount;
     // End of My variables
 
     @Override
@@ -195,6 +196,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mPosePositionBuffer = new ArrayList<float[]>();
         mPoseOrientationBuffer = new ArrayList<float[]>();
         mNumPoseInSequence = 0;
+        mXyzIjCallbackCount = 0;
         // End of My initializations
     }
 
@@ -337,9 +339,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                         * SECS_TO_MILLISECS;
                 mPosePreviousTimeStamp = (float) pose.timestamp;
                 if (mPreviousPoseStatus != pose.statusCode) {
-                    count = 0;
+                    mValidPoseCallbackCount = 0;
                 }
-                count++;
+                mValidPoseCallbackCount++;
                 mPreviousPoseStatus = pose.statusCode;
 
                 // My pose buffering
@@ -373,7 +375,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                         // Display pose data on screen in TextViews
                         mPoseTextView.setText(translationString);
                         mQuatTextView.setText(quaternionString);
-                        mPoseCountTextView.setText(Integer.toString(count));
+                        mPoseCountTextView.setText(Integer.toString(mValidPoseCallbackCount));
                         mDeltaTextView.setText(threeDec.format(mDeltaTime));
                         if (pose.statusCode == TangoPoseData.POSE_VALID) {
                             mPoseStatusTextView.setText(R.string.pose_valid);
@@ -394,6 +396,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 final float frameDelta = (mCurrentTimeStamp - mXyIjPreviousTimeStamp)
                         * SECS_TO_MILLISECS;
                 mXyIjPreviousTimeStamp = mCurrentTimeStamp;
+                mXyzIjCallbackCount++;
                 byte[] buffer = new byte[xyzIj.xyzCount * 3 * 4];
                 FileInputStream fileStream = new FileInputStream(
                         xyzIj.xyzParcelFileDescriptor.getFileDescriptor());
@@ -406,7 +409,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
                 // My writing to file function
                 // Saving the frame or not, depending on the current mode.
-                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && count % 10 == 0 ) ) {
+                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 10 == 0 ) ) {
                     writePointCloudToFile(xyzIj, buffer, framePairs);
                 }
                 // End of My writing to file function
@@ -500,8 +503,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             // Stop the Pose Recording, and write them to a file.
             writePoseToFile(mNumPoseInSequence);
             mNumPoseInSequence = 0;
-            mPoseOrientationBuffer.clear(); // TODO: Might not be necessary, remove for performance
-            mPoseOrientationBuffer.clear(); // TODO: Might not be necessary, remove for performance
+            mPoseOrientationBuffer.clear();
+            mPoseOrientationBuffer.clear();
         }
     }
 
@@ -530,7 +533,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         File file = new File(dir, mFilename);
 
 
-        //TODO : Write data in binary to improve performance
         try {
             // get external storage file reference
             FileWriter writer = new FileWriter(file);
@@ -571,7 +573,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         String poseFileName = "pc-" +  Integer.toHexString(myRandomNumber) + "-poses.vtk";
         File file = new File(dir, poseFileName);
 
-        //TODO : Write data in binary to improve performance
         try {
             // get external storage file reference
             FileWriter writer = new FileWriter(file);
