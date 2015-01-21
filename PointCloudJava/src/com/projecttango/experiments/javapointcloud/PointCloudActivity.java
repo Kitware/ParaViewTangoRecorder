@@ -109,8 +109,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private int mNumberOfFilesWritten;
     private Boolean mTimeToTakeSnap;
     private Boolean mAutoMode;
-    private int myRandomNumber;
-    private Random mRandGenerator;
+    private double myDateNumber;
     private ArrayList<float[]> mPosePositionBuffer;
     private ArrayList<float[]> mPoseOrientationBuffer;
     private int mNumPoseInSequence;
@@ -192,7 +191,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mAutoModeSwitch.setChecked(false);
         mIsRecording = false;
         mRecordSwitch.setChecked(false);
-        mRandGenerator = new Random();
         mPosePositionBuffer = new ArrayList<float[]>();
         mPoseOrientationBuffer = new ArrayList<float[]>();
         mNumPoseInSequence = 0;
@@ -409,7 +407,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
                 // My writing to file function
                 // Saving the frame or not, depending on the current mode.
-                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 10 == 0 ) ) {
+//                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 10 == 0 ) ) {
+                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 3 == 0 ) ) {
                     writePointCloudToFile(xyzIj, buffer, framePairs);
                 }
                 // End of My writing to file function
@@ -478,7 +477,13 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     // This function is called when the Take Snapshot button is clicked
     private void takeSnapshot_ButtonClicked() {
         if(!mIsRecording) {
-            myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
+            // Generate a new date number to create a new group of files
+            Calendar rightNow = Calendar.getInstance();
+            int hour = rightNow.get(Calendar.HOUR_OF_DAY);
+            int minute = rightNow.get(Calendar.MINUTE);
+            int sec = rightNow.get(Calendar.SECOND);
+            int milliSec = rightNow.get(Calendar.MILLISECOND);
+            myDateNumber = 10000*hour + 100*minute + sec + milliSec/1000.0;
             mNumberOfFilesWritten = 0;
         }
         mTimeToTakeSnap=true;
@@ -494,8 +499,13 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mIsRecording = isChecked;
         // Start Recording
         if (mIsRecording) {
-            // Generate a new random number to create a new group of files
-            myRandomNumber = mRandGenerator.nextInt(0xFFFFFF);
+            // Generate a new date number to create a new group of files
+            Calendar rightNow = Calendar.getInstance();
+            int hour = rightNow.get(Calendar.HOUR_OF_DAY);
+            int minute = rightNow.get(Calendar.MINUTE);
+            int sec = rightNow.get(Calendar.SECOND);
+            int milliSec = rightNow.get(Calendar.MILLISECOND);
+            myDateNumber = 10000*hour + 100*minute + sec + milliSec/1000.0;
             mNumberOfFilesWritten = 0;
         }
         // Finish Recording
@@ -516,17 +526,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         myBuffer.order(ByteOrder.LITTLE_ENDIAN);
         myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
 
-//            Calendar rightNow = Calendar.getInstance();
-//            int month = rightNow.get(Calendar.MONTH);
-//            int day = rightNow.get(Calendar.DAY_OF_MONTH);
-//            int hour = rightNow.get(Calendar.HOUR_OF_DAY);
-//            int minute = rightNow.get(Calendar.MINUTE);
-//            int sec = rightNow.get(Calendar.SECOND);
-//            int milliSec = rightNow.get(Calendar.MILLISECOND);
 
         File sdCard = Environment.getExternalStorageDirectory();
         File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
-        mFilename = "pc-" + Integer.toHexString(myRandomNumber) + "-" +
+        mFilename = "pc_" + (int)myDateNumber + "-" + (int)((myDateNumber%1)*10) + "_" +
                 String.format("%03d", mNumberOfFilesWritten) + ".vtk";
 
 
@@ -570,7 +573,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
         File sdCard = Environment.getExternalStorageDirectory();
         File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
-        String poseFileName = "pc-" +  Integer.toHexString(myRandomNumber) + "-poses.vtk";
+        String poseFileName = "pc_" +  (int)myDateNumber + "-" + (int)((myDateNumber%1)*10) +
+                "_poses.vtk";
         File file = new File(dir, poseFileName);
 
         try {
@@ -608,7 +612,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 writer.write(String.valueOf(mPoseOrientationBuffer.get(i)[0]) + " " +
                         String.valueOf(mPoseOrientationBuffer.get(i)[1]) + " " +
                         String.valueOf(mPoseOrientationBuffer.get(i)[2]) + " " +
-                        String.valueOf(mPoseOrientationBuffer.get(i)[3]));
+                        String.valueOf(mPoseOrientationBuffer.get(i)[3]) + " ");
                 if((i+1)%3 ==0) {
                     writer.write("\n");
                 }
