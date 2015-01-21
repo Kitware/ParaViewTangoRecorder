@@ -16,8 +16,8 @@
 -->
 <resources>
 
-    <string name="app_name">Project Tango Java Point Cloud</string>
-    <string name="menu_name">Java Point Cloud</string>
+    <string name="app_name">ParaView Tango Recorder</string>
+    <string name="menu_name">ParaView Tango Recorder</string>
     <string name="vertex_count">Number of points:</string>
     <string name="serviceversion">Tango service version:</string>
     <string name="appversion">"App version: "</string>
