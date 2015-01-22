@@ -112,6 +112,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private double myDateNumber;
     private ArrayList<float[]> mPosePositionBuffer;
     private ArrayList<float[]> mPoseOrientationBuffer;
+    private ArrayList<Float> mPoseTimestampBuffer;
     private int mNumPoseInSequence;
     boolean mIsRecording;
     private int mXyzIjCallbackCount;
@@ -193,6 +194,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mRecordSwitch.setChecked(false);
         mPosePositionBuffer = new ArrayList<float[]>();
         mPoseOrientationBuffer = new ArrayList<float[]>();
+        mPoseTimestampBuffer = new ArrayList<Float>();
         mNumPoseInSequence = 0;
         mXyzIjCallbackCount = 0;
         // End of My initializations
@@ -346,6 +348,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 if (mIsRecording && pose.statusCode == TangoPoseData.POSE_VALID) {
                     mPosePositionBuffer.add(mNumPoseInSequence, pose.getTranslationAsFloats());
                     mPoseOrientationBuffer.add(mNumPoseInSequence, pose.getRotationAsFloats());
+                    mPoseTimestampBuffer.add((float)pose.timestamp);
                     mNumPoseInSequence++;
                 }
                 //End of My pose buffering
@@ -515,6 +518,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             mNumPoseInSequence = 0;
             mPoseOrientationBuffer.clear();
             mPoseOrientationBuffer.clear();
+            mPoseTimestampBuffer.clear();
         }
     }
 
@@ -561,6 +565,12 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             for (int i = 0; i < xyzIj.xyzCount; i++) {
                 writer.write(" " + i);
             }
+
+            writer.write("\n\nFIELD FieldData 1\n" +
+                    "timestamp 1 1 float\n" );
+            writer.write(String.valueOf((float)xyzIj.timestamp));
+
+
             writer.close();
             mNumberOfFilesWritten++;
             mTimeToTakeSnap = false;
@@ -604,7 +614,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             }
 
             writer.write("\n\nPOINT_DATA " + String.valueOf(numPoints) + "\n" +
-                    "FIELD FieldData 1\n" +
+                    "FIELD FieldData 2\n" +
                     "orientation 4 " + String.valueOf(numPoints) + " float\n" );
 
             for (int i = 0; i < numPoints; i++) {
@@ -617,6 +627,17 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                     writer.write("\n");
                 }
             }
+
+            writer.write("\n\ntimestamp 1 " + String.valueOf(numPoints) + " float\n" );
+            for (int i = 0; i < numPoints; i++) {
+
+                writer.write(String.valueOf(mPoseTimestampBuffer.get(i)) + " ");
+                if((i+1)%9 ==0) {
+                    writer.write("\n");
+                }
+            }
+
+
             writer.close();
         } catch (IOException e) {
             e.printStackTrace();
