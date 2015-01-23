@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/PointCloudJava/PointCloudJava.iml" filepath="$PROJECT_DIR$/PointCloudJava/PointCloudJava.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ParaViewTangoRecorder/ParaViewTangoRecorder.iml" filepath="$PROJECT_DIR$/ParaViewTangoRecorder/ParaViewTangoRecorder.iml" />
       <module fileurl="file://$PROJECT_DIR$/TangoUtils/TangoUtils.iml" filepath="$PROJECT_DIR$/TangoUtils/TangoUtils.iml" />
     </modules>
   </component>

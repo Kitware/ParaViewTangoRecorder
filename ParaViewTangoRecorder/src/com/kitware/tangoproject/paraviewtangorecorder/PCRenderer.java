@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.projecttango.experiments.javapointcloud;
+package com.kitware.tangoproject.paraviewtangorecorder;
 
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -23,18 +23,18 @@ import android.opengl.Matrix;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-import com.projecttango.tangoutils.Renderer;
-import com.projecttango.tangoutils.renderables.CameraFrustum;
-import com.projecttango.tangoutils.renderables.CameraFrustumAndAxis;
-import com.projecttango.tangoutils.renderables.Grid;
-import com.projecttango.tangoutils.renderables.PointCloud;
+import com.kitware.tangoutils.Renderer;
+import com.kitware.tangoutils.renderables.CameraFrustum;
+import com.kitware.tangoutils.renderables.CameraFrustumAndAxis;
+import com.kitware.tangoutils.renderables.Grid;
+import com.kitware.tangoutils.renderables.PointCloud;
 
 /**
  * OpenGL rendering class for the Motion Tracking API sample. This class
  * managers the objects visible in the OpenGL view which are the
  * {@link CameraFrustum}, {@link PointCloud} and the {@link Grid}. These objects
  * are implemented in the TangoUtils library in the package
- * {@link com.projecttango.tangoutils.renderables}.
+ * {@link com.kitware.tangoutils.renderables}.
  * 
  * This class receives {@link TangoPose} data from the {@link MotionTracking}
  * class and updates the model and view matrices of the {@link Renderable}

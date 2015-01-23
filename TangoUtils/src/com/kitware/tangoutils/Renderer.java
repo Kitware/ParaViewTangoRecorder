@@ -1,4 +1,4 @@
-package com.projecttango.tangoutils;
+package com.kitware.tangoutils;
 
 import android.opengl.Matrix;
 import android.util.Log;

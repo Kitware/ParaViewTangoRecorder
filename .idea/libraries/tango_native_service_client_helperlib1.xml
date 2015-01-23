@@ -1,7 +1,7 @@
 <component name="libraryTable">
   <library name="tango_native_service_client_helperlib1">
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/PointCloudJava/libs/tango_native_service_client_helperlib.jar!/" />
+      <root url="jar://$PROJECT_DIR$/ParaViewTangoRecorder/libs/tango_native_service_client_helperlib.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

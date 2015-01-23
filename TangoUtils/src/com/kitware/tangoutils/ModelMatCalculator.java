@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.projecttango.tangoutils;
+package com.kitware.tangoutils;
 
 import android.opengl.Matrix;
 

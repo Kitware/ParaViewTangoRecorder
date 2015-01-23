@@ -17,4 +17,4 @@
  * A sample application to show hwo to get Point Cloud Data from Project Tango API 
  * and display in world coordinates of Opengl ES2.0.
  */
-package com.projecttango.experiments.javapointcloud;
+package com.kitware.tangoproject.paraviewtangorecorder;
