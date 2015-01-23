@@ -62,6 +62,7 @@ import java.nio.ByteOrder;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.concurrent.Semaphore;
 
 /**
  * Main Activity class for the Point Cloud Sample. Handles the connection to the
@@ -118,9 +119,11 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private ArrayList<float[]> mPosePositionBuffer;
     private ArrayList<float[]> mPoseOrientationBuffer;
     private ArrayList<Float> mPoseTimestampBuffer;
+    private ArrayList<String> mFilenameBuffer;
     private int mNumPoseInSequence;
     boolean mIsRecording;
     private int mXyzIjCallbackCount;
+    private Semaphore mutex_on_mIsRecording;
     // End of My variables
 
     @Override
@@ -200,8 +203,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mPosePositionBuffer = new ArrayList<float[]>();
         mPoseOrientationBuffer = new ArrayList<float[]>();
         mPoseTimestampBuffer = new ArrayList<Float>();
+        mFilenameBuffer = new ArrayList<String>();
         mNumPoseInSequence = 0;
         mXyzIjCallbackCount = 0;
+        mutex_on_mIsRecording = new Semaphore(1,true);
         // End of My initializations
     }
 
@@ -414,11 +419,19 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 }
 
                 // My writing to file function
+
+
+                try {
+                    mutex_on_mIsRecording.acquire();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 // Saving the frame or not, depending on the current mode.
-//                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 10 == 0 ) ) {
                 if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 3 == 0 ) ) {
                     writePointCloudToFile(xyzIj, buffer, framePairs);
                 }
+                mutex_on_mIsRecording.release();
+
                 // End of My writing to file function
 
                 try {
@@ -484,6 +497,11 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     // This function is called when the Take Snapshot button is clicked
     private void takeSnapshot_ButtonClicked() {
+        try {
+            mutex_on_mIsRecording.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         if(!mIsRecording) {
             // Generate a new date number to create a new group of files
             Calendar rightNow = Calendar.getInstance();
@@ -495,6 +513,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             mNumberOfFilesWritten = 0;
         }
         mTimeToTakeSnap=true;
+        mutex_on_mIsRecording.release();
     }
 
     // This function is called when the Auto Mode Switch is changed
@@ -504,6 +523,11 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     // This function is called when the Record Switch is changed
     private void record_SwitchChanged(boolean isChecked) {
+        try {
+            mutex_on_mIsRecording.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         mIsRecording = isChecked;
         // Start Recording
         if (mIsRecording) {
@@ -518,13 +542,40 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         }
         // Finish Recording
         else {
+            // TODO : Display a loading widget, it takes a while to write and zip everything
             // Stop the Pose Recording, and write them to a file.
             writePoseToFile(mNumPoseInSequence);
+            // If a snap has been asked just before, but not saved, ignore it, otherwise,
+            // it will be saved at the end dof this function, and the 2nd archive will override
+            // the first.
+            mTimeToTakeSnap = false;
             mNumPoseInSequence = 0;
             mPoseOrientationBuffer.clear();
             mPoseOrientationBuffer.clear();
             mPoseTimestampBuffer.clear();
+
+            // Zip all the files from this sequence
+            File sdCard = Environment.getExternalStorageDirectory();
+            String zipFilename = sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" +
+                    "TangoData_" + (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
+                    "_" + mFilenameBuffer.size() + "files.zip";
+            String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
+            ZipWriter zipper = new ZipWriter(fileList, zipFilename);
+            zipper.zip();
+            mFilenameBuffer.clear();
+
+            // Delete the data files now that they are archived
+            // TODO : Figure out why the files aren't deleted
+            for (String s : mFilenameBuffer) {
+                File file = new File(s);
+                boolean deleted = file.delete();
+                if (!deleted) {
+                    Log.i(TAG, "File \"" + s + "\" not deleted\n");
+                }
+            }
+            // TODO : Stop the loading widget
         }
+        mutex_on_mIsRecording.release();
     }
 
     // This function writes the XYZ points to .vtk files
@@ -538,10 +589,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
         File sdCard = Environment.getExternalStorageDirectory();
         File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
-        mFilename = "pc_" + (int)myDateNumber + "-" + (int)((myDateNumber%1)*10) + "_" +
+        mFilename = "pc_" + (int)myDateNumber + "" + (int)((myDateNumber%1)*100) + "_" +
                 String.format("%03d", mNumberOfFilesWritten) + ".vtk";
-
-
+        mFilenameBuffer.add(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" + mFilename);
         File file = new File(dir, mFilename);
 
 
@@ -579,6 +629,34 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             writer.close();
             mNumberOfFilesWritten++;
             mTimeToTakeSnap = false;
+
+            // If it's not recording, it means that it's a single snapshot, so we need to zip it
+            if(!mIsRecording) {
+                // Zip the single file from this sequence
+                // TODO: After verifying that the number of files in the list is always 1 at that
+                // TODO: point, simplify these steps.
+                String zipFilename = sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" +
+                        "TangoData_" + (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
+                        "_" + mFilenameBuffer.size() + "files.zip";
+
+                String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
+
+                ZipWriter zipper = new ZipWriter(fileList, zipFilename);
+                zipper.zip();
+
+                mFilenameBuffer.clear();
+
+                // Delete the data files now that they are archived
+                // TODO : Simplify this by using "file" already defined above (list has 1 item)
+                // TODO : Figure out why the files aren't deleted
+                for (String s : mFilenameBuffer) {
+                    File myFile = new File(s);
+                    boolean deleted = myFile.delete();
+                    if (!deleted) {
+                        Log.i(TAG, "File \"" + s + "\" not deleted\n");
+                    }
+                }
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -588,8 +666,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
         File sdCard = Environment.getExternalStorageDirectory();
         File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
-        String poseFileName = "pc_" +  (int)myDateNumber + "-" + (int)((myDateNumber%1)*10) +
+        String poseFileName = "pc_" +  (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
                 "_poses.vtk";
+        mFilenameBuffer.add(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" + poseFileName);
         File file = new File(dir, poseFileName);
 
         try {
@@ -641,7 +720,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                     writer.write("\n");
                 }
             }
-
 
             writer.close();
         } catch (IOException e) {
