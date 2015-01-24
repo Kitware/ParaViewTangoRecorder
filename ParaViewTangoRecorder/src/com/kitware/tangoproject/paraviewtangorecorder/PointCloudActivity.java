@@ -115,6 +115,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private Switch mRecordSwitch;
     private ProgressBar mWaitForIt;
 
+    private static final String mSaveDirAbsPath = Environment.getExternalStorageDirectory()
+            .getAbsolutePath() + "/Tango/MyPointCloudData/";
     private String mFilename;
     private int mNumberOfFilesWritten;
     private Boolean mTimeToTakeSnap;
@@ -561,9 +563,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             mPoseTimestampBuffer.clear();
 
             // Zip all the files from this sequence
-            File sdCard = Environment.getExternalStorageDirectory();
-            String zipFilename = sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" +
-                    "TangoData_" + (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
+            String zipFilename = mSaveDirAbsPath + "TangoData_" +
+                    (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
                     "_" + mFilenameBuffer.size() + "files.zip";
             String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
             ZipWriter zipper = new ZipWriter(fileList, zipFilename);
@@ -602,11 +603,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
 
 
-        File sdCard = Environment.getExternalStorageDirectory();
-        File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/");
+        File dir = new File(mSaveDirAbsPath);
         String nowTime = (int)myDateNumber + "" + (int)((myDateNumber%1)*100);
         mFilename = "pc_" + nowTime + "_" + String.format("%03d", mNumberOfFilesWritten) + ".vtk";
-        mFilenameBuffer.add(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" + mFilename);
+        mFilenameBuffer.add(mSaveDirAbsPath + mFilename);
         File file = new File(dir, mFilename);
 
 
@@ -651,8 +651,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 if(mFilenameBuffer.size() != 1) {
                     Log.w(TAG, "WARNING: No recording, and mFilenameBuffer.size() != 1\n");
                 }
-                String zipFilename = sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" +
-                        "TangoData_" + nowTime + "_" + mFilenameBuffer.size() + "files.zip";
+                String zipFilename = mSaveDirAbsPath + "TangoData_" + nowTime + "_" +
+                        mFilenameBuffer.size() + "files.zip";
                 String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
                 ZipWriter zipper = new ZipWriter(fileList, zipFilename);
                 zipper.zip();
@@ -674,11 +674,10 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     private void writePoseToFile(int numPoints) {
 
-        File sdCard = Environment.getExternalStorageDirectory();
-        File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
+        File dir = new File(mSaveDirAbsPath);
         String poseFileName = "pc_" +  (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
                 "_poses.vtk";
-        mFilenameBuffer.add(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" + poseFileName);
+        mFilenameBuffer.add(mSaveDirAbsPath + poseFileName);
         File file = new File(dir, poseFileName);
 
         try {
