@@ -51,6 +51,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -112,6 +113,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private TextView mFilesWrittenToSDCardTextView;
     private Switch mAutoModeSwitch;
     private Switch mRecordSwitch;
+    private ProgressBar mWaitForIt;
 
     private String mFilename;
     private int mNumberOfFilesWritten;
@@ -194,6 +196,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 record_SwitchChanged(isChecked);
             }
         });
+        mWaitForIt = (ProgressBar) findViewById(R.id.progressBar);
+        mWaitForIt.setVisibility(View.VISIBLE);
+
 
         mFilename = "";
         mNumberOfFilesWritten = 0;
@@ -475,6 +480,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                         // My GUI updates
                         mFilesWrittenToSDCardTextView.setText("" +
                                 String.valueOf(mNumberOfFilesWritten) + "\n" + mFilename);
+                        mWaitForIt.setVisibility(View.GONE);
                         // End of My GUI updates
                     }
                 });
