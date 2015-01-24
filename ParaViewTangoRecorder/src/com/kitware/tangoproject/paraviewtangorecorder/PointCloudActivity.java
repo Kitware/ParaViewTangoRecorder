@@ -602,8 +602,13 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         myBuffer.order(ByteOrder.LITTLE_ENDIAN);
         myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
 
-
         File dir = new File(mSaveDirAbsPath);
+        if(!dir.exists()) {
+            boolean created = dir.mkdir();
+            if (created) {
+                Log.i(TAG, "Folder: \"" + mSaveDirAbsPath + "\" created\n");
+            }
+        }
         String nowTime = (int)myDateNumber + "" + (int)((myDateNumber%1)*100);
         mFilename = "pc_" + nowTime + "_" + String.format("%03d", mNumberOfFilesWritten) + ".vtk";
         mFilenameBuffer.add(mSaveDirAbsPath + mFilename);
@@ -675,6 +680,12 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private void writePoseToFile(int numPoints) {
 
         File dir = new File(mSaveDirAbsPath);
+        if(!dir.exists()) {
+            boolean created = dir.mkdir();
+            if (created) {
+                Log.i(TAG, "Folder: \"" + mSaveDirAbsPath + "\" created\n");
+            }
+        }
         String poseFileName = "pc_" +  (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
                 "_poses.vtk";
         mFilenameBuffer.add(mSaveDirAbsPath + poseFileName);
