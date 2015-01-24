@@ -40,9 +40,11 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.net.Uri;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.v4.content.FileProvider;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -420,7 +422,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
                 // My writing to file function
 
-
                 try {
                     mutex_on_mIsRecording.acquire();
                 } catch (InterruptedException e) {
@@ -542,7 +543,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         }
         // Finish Recording
         else {
-            // TODO : Display a loading widget, it takes a while to write and zip everything
             // Stop the Pose Recording, and write them to a file.
             writePoseToFile(mNumPoseInSequence);
             // If a snap has been asked just before, but not saved, ignore it, otherwise,
@@ -562,20 +562,29 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
             ZipWriter zipper = new ZipWriter(fileList, zipFilename);
             zipper.zip();
-            mFilenameBuffer.clear();
 
             // Delete the data files now that they are archived
-            // TODO : Figure out why the files aren't deleted
             for (String s : mFilenameBuffer) {
                 File file = new File(s);
                 boolean deleted = file.delete();
                 if (!deleted) {
-                    Log.i(TAG, "File \"" + s + "\" not deleted\n");
+                    Log.w(TAG, "File \"" + s + "\" not deleted\n");
                 }
             }
-            // TODO : Stop the loading widget
+            mFilenameBuffer.clear();
+
+            // Send the zip file to another app
+            File myZipFile = new File(zipFilename);
+            Uri myZipUri = FileProvider.getUriForFile(this, "com.kitware.tangoproject." +
+                    "paraviewtangorecorder.fileprovider", myZipFile);
+            Intent shareIntent = new Intent();
+            shareIntent.setAction(Intent.ACTION_SEND);
+            shareIntent.putExtra(Intent.EXTRA_STREAM, myZipUri);
+            shareIntent.setType("application/zip");
+            startActivity(Intent.createChooser(shareIntent, "Send Data To..."));
         }
         mutex_on_mIsRecording.release();
+
     }
 
     // This function writes the XYZ points to .vtk files
@@ -588,9 +597,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
 
         File sdCard = Environment.getExternalStorageDirectory();
-        File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData");
-        mFilename = "pc_" + (int)myDateNumber + "" + (int)((myDateNumber%1)*100) + "_" +
-                String.format("%03d", mNumberOfFilesWritten) + ".vtk";
+        File dir = new File(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/");
+        String nowTime = (int)myDateNumber + "" + (int)((myDateNumber%1)*100);
+        mFilename = "pc_" + nowTime + "_" + String.format("%03d", mNumberOfFilesWritten) + ".vtk";
         mFilenameBuffer.add(sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" + mFilename);
         File file = new File(dir, mFilename);
 
@@ -632,30 +641,25 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
             // If it's not recording, it means that it's a single snapshot, so we need to zip it
             if(!mIsRecording) {
-                // Zip the single file from this sequence
-                // TODO: After verifying that the number of files in the list is always 1 at that
-                // TODO: point, simplify these steps.
+                // Zip the file from this sequence (there should be only 1)
+                if(mFilenameBuffer.size() != 1) {
+                    Log.w(TAG, "WARNING: No recording, and mFilenameBuffer.size() != 1\n");
+                }
                 String zipFilename = sdCard.getAbsolutePath() + "/Tango/MyPointCloudData/" +
-                        "TangoData_" + (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
-                        "_" + mFilenameBuffer.size() + "files.zip";
-
+                        "TangoData_" + nowTime + "_" + mFilenameBuffer.size() + "files.zip";
                 String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
-
                 ZipWriter zipper = new ZipWriter(fileList, zipFilename);
                 zipper.zip();
 
-                mFilenameBuffer.clear();
-
                 // Delete the data files now that they are archived
-                // TODO : Simplify this by using "file" already defined above (list has 1 item)
-                // TODO : Figure out why the files aren't deleted
                 for (String s : mFilenameBuffer) {
                     File myFile = new File(s);
                     boolean deleted = myFile.delete();
                     if (!deleted) {
-                        Log.i(TAG, "File \"" + s + "\" not deleted\n");
+                        Log.w(TAG, "File \"" + s + "\" not deleted\n");
                     }
                 }
+                mFilenameBuffer.clear();
             }
         } catch (IOException e) {
             e.printStackTrace();

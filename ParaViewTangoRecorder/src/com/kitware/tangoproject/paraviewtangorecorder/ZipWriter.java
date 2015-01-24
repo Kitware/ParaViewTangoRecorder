@@ -52,7 +52,7 @@ public class ZipWriter {
             byte data[] = new byte[BUFFER];
 
             for (String _file : _files) {
-                //Log.i("Compress", "Adding: " + _file.substring(_file.lastIndexOf("/") + 1));
+//                Log.i("Compress", "Adding: " + _file.substring(_file.lastIndexOf("/") + 1));
                 FileInputStream fi = new FileInputStream(_file);
                 origin = new BufferedInputStream(fi, BUFFER);
                 ZipEntry entry = new ZipEntry(_file.substring(_file.lastIndexOf("/") + 1));

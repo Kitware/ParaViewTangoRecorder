@@ -20,6 +20,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="tango_native_service_client_helperlib1" level="project" />
     <orderEntry type="module" module-name="TangoUtils" />
+    <orderEntry type="library" name="android-support-v4" level="project" />
   </component>
 </module>
 
