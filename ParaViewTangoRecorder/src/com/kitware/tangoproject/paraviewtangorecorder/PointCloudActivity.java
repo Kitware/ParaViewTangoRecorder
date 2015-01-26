@@ -37,6 +37,7 @@ import com.google.atap.tangoservice.TangoPoseData;
 import com.google.atap.tangoservice.TangoXyzIjData;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -559,44 +560,62 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         // Finish Recording
         else {
             mTakeSnapButton.setEnabled(false);
-            // Stop the Pose Recording, and write them to a file.
-            writePoseToFile(mNumPoseInSequence);
-            // If a snap has been asked just before, but not saved, ignore it, otherwise,
-            // it will be saved at the end dof this function, and the 2nd archive will override
-            // the first.
-            mTimeToTakeSnap = false;
-            mNumPoseInSequence = 0;
-            mPoseOrientationBuffer.clear();
-            mPoseOrientationBuffer.clear();
-            mPoseTimestampBuffer.clear();
+            // Background task for writing poses to file
+            class SendCommandTask extends AsyncTask<Context, Void, Uri> {
+                /** The system calls this to perform work in a worker thread and
+                 * delivers it the parameters given to AsyncTask.execute() */
+                @Override
+                protected Uri doInBackground(Context... myAppContext) {
 
-            // Zip all the files from this sequence
-            String zipFilename = mSaveDirAbsPath + "TangoData_" +
-                    (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
-                    "_" + mFilenameBuffer.size() + "files.zip";
-            String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
-            ZipWriter zipper = new ZipWriter(fileList, zipFilename);
-            zipper.zip();
+                    // Stop the Pose Recording, and write them to a file.
+                    writePoseToFile(mNumPoseInSequence);
+                    // If a snap has been asked just before, but not saved, ignore it, otherwise,
+                    // it will be saved at the end dof this function, and the 2nd archive will override
+                    // the first.
+                    mTimeToTakeSnap = false;
+                    mNumPoseInSequence = 0;
+                    mPoseOrientationBuffer.clear();
+                    mPoseOrientationBuffer.clear();
+                    mPoseTimestampBuffer.clear();
 
-            // Delete the data files now that they are archived
-            for (String s : mFilenameBuffer) {
-                File file = new File(s);
-                boolean deleted = file.delete();
-                if (!deleted) {
-                    Log.w(TAG, "File \"" + s + "\" not deleted\n");
+                    // Zip all the files from this sequence
+                    String zipFilename = mSaveDirAbsPath + "TangoData_" +
+                            (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
+                            "_" + mFilenameBuffer.size() + "files.zip";
+                    String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
+                    ZipWriter zipper = new ZipWriter(fileList, zipFilename);
+                    zipper.zip();
+
+                    // Delete the data files now that they are archived
+                    for (String s : mFilenameBuffer) {
+                        File file = new File(s);
+                        boolean deleted = file.delete();
+                        if (!deleted) {
+                            Log.w(TAG, "File \"" + s + "\" not deleted\n");
+                        }
+                    }
+                    mFilenameBuffer.clear();
+
+                    // Send the zip file to another app
+                    File myZipFile = new File(zipFilename);
+
+                    return FileProvider.getUriForFile(myAppContext[0], "com.kitware." +
+                            "tangoproject.paraviewtangorecorder.fileprovider", myZipFile);
+                }
+
+                /** The system calls this to perform work in the UI thread and delivers
+                 * the result from doInBackground() */
+                @Override
+                protected void onPostExecute(Uri fileURI) {
+                    Intent shareIntent = new Intent();
+                    shareIntent.setAction(Intent.ACTION_SEND);
+                    shareIntent.putExtra(Intent.EXTRA_STREAM, fileURI);
+                    shareIntent.setType("application/zip");
+                    startActivity(Intent.createChooser(shareIntent, "Send Scan To..."));
                 }
             }
-            mFilenameBuffer.clear();
+            new SendCommandTask().execute(this);
 
-            // Send the zip file to another app
-            File myZipFile = new File(zipFilename);
-            Uri myZipUri = FileProvider.getUriForFile(this, "com.kitware.tangoproject." +
-                    "paraviewtangorecorder.fileprovider", myZipFile);
-            Intent shareIntent = new Intent();
-            shareIntent.setAction(Intent.ACTION_SEND);
-            shareIntent.putExtra(Intent.EXTRA_STREAM, myZipUri);
-            shareIntent.setType("application/zip");
-            startActivity(Intent.createChooser(shareIntent, "Send Data To..."));
         }
         mutex_on_mIsRecording.release();
 
