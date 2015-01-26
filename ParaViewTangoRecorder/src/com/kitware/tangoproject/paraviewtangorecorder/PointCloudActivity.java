@@ -42,6 +42,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.Uri;
 import android.opengl.GLSurfaceView;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.content.FileProvider;
@@ -418,7 +419,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                         * SECS_TO_MILLISECS;
                 mXyIjPreviousTimeStamp = mCurrentTimeStamp;
                 mXyzIjCallbackCount++;
-                byte[] buffer = new byte[xyzIj.xyzCount * 3 * 4];
+                final byte[] buffer = new byte[xyzIj.xyzCount * 3 * 4];
                 FileInputStream fileStream = new FileInputStream(
                         xyzIj.xyzParcelFileDescriptor.getFileDescriptor());
                 try {
@@ -430,16 +431,36 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
                 // My writing to file function
 
-                try {
-                    mutex_on_mIsRecording.acquire();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                // Background task for writing to file
+                class SendCommandTask extends AsyncTask<Void, Void, Boolean> {
+                    /** The system calls this to perform work in a worker thread and
+                     * delivers it the parameters given to AsyncTask.execute() */
+                    @Override
+                    protected Boolean doInBackground(Void... params) {
+
+                        try {
+                            mutex_on_mIsRecording.acquire();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        // Saving the frame or not, depending on the current mode.
+                        if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 3 == 0 ) ) {
+                            writePointCloudToFile(xyzIj, buffer, framePairs);
+                        }
+                        mutex_on_mIsRecording.release();
+                        return true;
+                    }
+
+                    /** The system calls this to perform work in the UI thread and delivers
+                     * the result from doInBackground() */
+                    @Override
+                    protected void onPostExecute(Boolean done) {
+
+                    }
                 }
-                // Saving the frame or not, depending on the current mode.
-                if ( mTimeToTakeSnap || ( mIsRecording && mAutoMode && mXyzIjCallbackCount % 3 == 0 ) ) {
-                    writePointCloudToFile(xyzIj, buffer, framePairs);
-                }
-                mutex_on_mIsRecording.release();
+                new SendCommandTask().execute();
+
+
 
                 // End of My writing to file function
 
