@@ -205,6 +205,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mFilename = "";
         mNumberOfFilesWritten = 0;
         mTimeToTakeSnap = false;
+        mTakeSnapButton.setEnabled(false);
         mAutoMode = false;
         mAutoModeSwitch.setChecked(false);
         mIsRecording = false;
@@ -506,23 +507,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     // This function is called when the Take Snapshot button is clicked
     private void takeSnapshot_ButtonClicked() {
-        try {
-            mutex_on_mIsRecording.acquire();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if(!mIsRecording) {
-            // Generate a new date number to create a new group of files
-            Calendar rightNow = Calendar.getInstance();
-            int hour = rightNow.get(Calendar.HOUR_OF_DAY);
-            int minute = rightNow.get(Calendar.MINUTE);
-            int sec = rightNow.get(Calendar.SECOND);
-            int milliSec = rightNow.get(Calendar.MILLISECOND);
-            myDateNumber = 10000*hour + 100*minute + sec + milliSec/1000.0;
-            mNumberOfFilesWritten = 0;
-        }
         mTimeToTakeSnap=true;
-        mutex_on_mIsRecording.release();
     }
 
     // This function is called when the Auto Mode Switch is changed
@@ -548,9 +533,11 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             int milliSec = rightNow.get(Calendar.MILLISECOND);
             myDateNumber = 10000*hour + 100*minute + sec + milliSec/1000.0;
             mNumberOfFilesWritten = 0;
+            mTakeSnapButton.setEnabled(true);
         }
         // Finish Recording
         else {
+            mTakeSnapButton.setEnabled(false);
             // Stop the Pose Recording, and write them to a file.
             writePoseToFile(mNumPoseInSequence);
             // If a snap has been asked just before, but not saved, ignore it, otherwise,
@@ -650,28 +637,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             mNumberOfFilesWritten++;
             mTimeToTakeSnap = false;
 
-            // If it's not recording, it means that it's a single snapshot, so we need to zip it
-            if(!mIsRecording) {
-                // Zip the file from this sequence (there should be only 1)
-                if(mFilenameBuffer.size() != 1) {
-                    Log.w(TAG, "WARNING: No recording, and mFilenameBuffer.size() != 1\n");
-                }
-                String zipFilename = mSaveDirAbsPath + "TangoData_" + nowTime + "_" +
-                        mFilenameBuffer.size() + "files.zip";
-                String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
-                ZipWriter zipper = new ZipWriter(fileList, zipFilename);
-                zipper.zip();
-
-                // Delete the data files now that they are archived
-                for (String s : mFilenameBuffer) {
-                    File myFile = new File(s);
-                    boolean deleted = myFile.delete();
-                    if (!deleted) {
-                        Log.w(TAG, "File \"" + s + "\" not deleted\n");
-                    }
-                }
-                mFilenameBuffer.clear();
-            }
         } catch (IOException e) {
             e.printStackTrace();
         }
