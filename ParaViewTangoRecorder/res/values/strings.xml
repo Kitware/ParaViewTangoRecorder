@@ -58,6 +58,8 @@
     <string name="autoMode">"Auto Mode"</string>
     <string name="takeSnap">"Take Snapshot"</string>
     <string name="record">"Record"</string>
+    <string name="waitSavingScan">"Saving scan…"</string>
+    <string name="waitInitialize">"Initializing…"</string>
     <!-- End of My strings-->
 
 </resources>

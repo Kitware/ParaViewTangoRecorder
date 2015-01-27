@@ -53,6 +53,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -115,7 +116,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private TextView mFilesWrittenToSDCardTextView;
     private Switch mAutoModeSwitch;
     private Switch mRecordSwitch;
-    private ProgressBar mWaitForIt;
+    private ProgressBar mWaitingProgressBar;
+    private TextView mWaitingTextView;
+    private LinearLayout mWaitingLinearLayout;
 
     private static final String mSaveDirAbsPath = Environment.getExternalStorageDirectory()
             .getAbsolutePath() + "/Tango/MyPointCloudData/";
@@ -132,6 +135,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     boolean mIsRecording;
     private int mXyzIjCallbackCount;
     private Semaphore mutex_on_mIsRecording;
+    private boolean mAppIsStarting;
     // End of My variables
 
     @Override
@@ -200,8 +204,14 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 record_SwitchChanged(isChecked);
             }
         });
-        mWaitForIt = (ProgressBar) findViewById(R.id.progressBar);
-        mWaitForIt.setVisibility(View.VISIBLE);
+        mWaitingProgressBar = (ProgressBar) findViewById(R.id.progressBar);
+        mWaitingProgressBar.setVisibility(View.VISIBLE);
+        mWaitingTextView = (TextView) findViewById(R.id.waitingTextView);
+        mWaitingTextView.setVisibility(View.VISIBLE);
+        mWaitingTextView.setText(R.string.waitInitialize);
+        mWaitingLinearLayout = (LinearLayout) findViewById(R.id.waitingBarLayout);
+        mWaitingLinearLayout.setVisibility(View.VISIBLE);
+        // TODO: Find a place in code to do: "hide the initialization progress bar" after init
 
 
         mFilename = "";
@@ -219,6 +229,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mNumPoseInSequence = 0;
         mXyzIjCallbackCount = 0;
         mutex_on_mIsRecording = new Semaphore(1,true);
+        mAppIsStarting = true;
         // End of My initializations
     }
 
@@ -487,13 +498,17 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 }
 
                 // Must run UI changes on the UI thread. Running in the Tango
-                // service thread
-                // will result in an error.
+                // service thread will result in an error.
                 runOnUiThread(new Runnable() {
                     DecimalFormat threeDec = new DecimalFormat("0.000");
 
                     @Override
                     public void run() {
+                        // Display a waiting progress bar
+                        if(mAppIsStarting) {
+                            mWaitingLinearLayout.setVisibility(View.GONE);
+                            mAppIsStarting = false;
+                        }
                         // Display number of points in the point cloud
                         mPointCountTextView.setText(Integer
                                 .toString(xyzIj.xyzCount));
@@ -505,7 +520,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                         // My GUI updates
                         mFilesWrittenToSDCardTextView.setText("" +
                                 String.valueOf(mNumberOfFilesWritten) + "\n" + mFilename);
-                        mWaitForIt.setVisibility(View.GONE);
                         // End of My GUI updates
                     }
                 });
@@ -555,11 +569,16 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             int milliSec = rightNow.get(Calendar.MILLISECOND);
             myDateNumber = 10000*hour + 100*minute + sec + milliSec/1000.0;
             mNumberOfFilesWritten = 0;
+            // Enable snapshot button
             mTakeSnapButton.setEnabled(true);
         }
         // Finish Recording
         else {
+            // Disable snapshot button
             mTakeSnapButton.setEnabled(false);
+            // Display a waiting progress bar
+            mWaitingTextView.setText(R.string.waitSavingScan);
+            mWaitingLinearLayout.setVisibility(View.VISIBLE);
             // Background task for writing poses to file
             class SendCommandTask extends AsyncTask<Context, Void, Uri> {
                 /** The system calls this to perform work in a worker thread and
@@ -612,6 +631,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                     shareIntent.putExtra(Intent.EXTRA_STREAM, fileURI);
                     shareIntent.setType("application/zip");
                     startActivity(Intent.createChooser(shareIntent, "Send Scan To..."));
+                    mWaitingLinearLayout.setVisibility(View.GONE);
                 }
             }
             new SendCommandTask().execute(this);
