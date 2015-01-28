@@ -59,8 +59,11 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -639,7 +642,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     }
 
-    // This function writes the XYZ points to .vtk files
+    // This function writes the XYZ points to .vtk files in binary
     private void writePointCloudToFile(TangoXyzIjData xyzIj, byte[] buffer,
                                        ArrayList<TangoCoordinateFramePair> framePairs) {
 
@@ -662,37 +665,33 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
 
         try {
-            // get external storage file reference
-            FileWriter writer = new FileWriter(file);
-            // Writes the content to the file
-            writer.write("# vtk DataFile Version 3.0\n" +
+
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
+                    new FileOutputStream(file)));
+
+            out.write(("# vtk DataFile Version 3.0\n" +
                     "vtk output\n" +
-                    "ASCII\n" +
+                    "BINARY\n" +
                     "DATASET POLYDATA\n" +
-                    "POINTS " + xyzIj.xyzCount + " float\n");
+                    "POINTS " + xyzIj.xyzCount + " float\n").getBytes());
 
             for (int i = 0; i < xyzIj.xyzCount; i++) {
 
-                writer.write(String.valueOf(myBuffer.getFloat(3 * i * 4)) + " " +
-                        String.valueOf(myBuffer.getFloat((3 * i + 1) * 4)) + " " +
-                        String.valueOf(myBuffer.getFloat((3 * i + 2) * 4)) + " ");
-                if ((i + 1) % 3 == 0) {
-                    writer.write("\n");
-                }
+                out.writeFloat(myBuffer.getFloat(3 * i * 4));
+                out.writeFloat(myBuffer.getFloat((3 * i + 1) * 4));
+                out.writeFloat(myBuffer.getFloat((3 * i + 2) * 4));
             }
 
-            writer.write("\n\nVERTICES 1 " + String.valueOf(xyzIj.xyzCount + 1) + "\n" +
-                    xyzIj.xyzCount);
+            out.write(("\nVERTICES 1 " + String.valueOf(xyzIj.xyzCount + 1) + "\n").getBytes());
+            out.writeInt(xyzIj.xyzCount);
             for (int i = 0; i < xyzIj.xyzCount; i++) {
-                writer.write(" " + i);
+                out.writeInt(i);
             }
 
-            writer.write("\n\nFIELD FieldData 1\n" +
-                    "timestamp 1 1 float\n" );
-            writer.write(String.valueOf((float)xyzIj.timestamp));
+            out.write(("\nFIELD FieldData 1\n" + "timestamp 1 1 float\n").getBytes());
+            out.writeFloat((float) xyzIj.timestamp);
 
-
-            writer.close();
+            out.close();
             mNumberOfFilesWritten++;
             mTimeToTakeSnap = false;
 
@@ -701,6 +700,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         }
     }
 
+    // This function writes the pose data and timestamps to .vtk files in binary
     private void writePoseToFile(int numPoints) {
 
         File dir = new File(mSaveDirAbsPath);
@@ -715,56 +715,44 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         File file = new File(dir, poseFileName);
 
         try {
-            // get external storage file reference
-            FileWriter writer = new FileWriter(file);
-            // Writes the content to the file
-            writer.write("# vtk DataFile Version 3.0\n" +
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
+                    new FileOutputStream(file)));
+
+            out.write(("# vtk DataFile Version 3.0\n" +
                     "vtk output\n" +
-                    "ASCII\n" +
+                    "BINARY\n" +
                     "DATASET POLYDATA\n" +
-                    "POINTS " + numPoints + " float\n");
+                    "POINTS " + numPoints + " float\n").getBytes());
 
             for (int i = 0; i < numPoints; i++) {
-
-                writer.write(String.valueOf(mPosePositionBuffer.get(i)[0]) + " " +
-                        String.valueOf(mPosePositionBuffer.get(i)[1]) + " " +
-                        String.valueOf(mPosePositionBuffer.get(i)[2]) + " ");
-                if((i+1)%3 ==0) {
-                    writer.write("\n");
-                }
+                out.writeFloat(mPosePositionBuffer.get(i)[0]);
+                out.writeFloat(mPosePositionBuffer.get(i)[1]);
+                out.writeFloat(mPosePositionBuffer.get(i)[2]);
             }
 
-            writer.write("\n\nLINES 1 " + String.valueOf(numPoints+1) + "\n" +
-                    numPoints);
+            out.write(("\nLINES 1 " + String.valueOf(numPoints + 1) + "\n").getBytes());
+            out.writeInt(numPoints);
             for (int i = 0; i < numPoints; i++) {
-                writer.write(" "+i);
+                out.writeInt(i);
             }
 
-            writer.write("\n\nPOINT_DATA " + String.valueOf(numPoints) + "\n" +
+            out.write(("\nPOINT_DATA " + String.valueOf(numPoints) + "\n" +
                     "FIELD FieldData 2\n" +
-                    "orientation 4 " + String.valueOf(numPoints) + " float\n" );
+                    "orientation 4 " + String.valueOf(numPoints) + " float\n").getBytes());
 
             for (int i = 0; i < numPoints; i++) {
-
-                writer.write(String.valueOf(mPoseOrientationBuffer.get(i)[0]) + " " +
-                        String.valueOf(mPoseOrientationBuffer.get(i)[1]) + " " +
-                        String.valueOf(mPoseOrientationBuffer.get(i)[2]) + " " +
-                        String.valueOf(mPoseOrientationBuffer.get(i)[3]) + " ");
-                if((i+1)%3 ==0) {
-                    writer.write("\n");
-                }
+                out.writeFloat(mPoseOrientationBuffer.get(i)[0]);
+                out.writeFloat(mPoseOrientationBuffer.get(i)[1]);
+                out.writeFloat(mPoseOrientationBuffer.get(i)[2]);
+                out.writeFloat(mPoseOrientationBuffer.get(i)[3]);
             }
 
-            writer.write("\n\ntimestamp 1 " + String.valueOf(numPoints) + " float\n" );
+            out.write(("\ntimestamp 1 " + String.valueOf(numPoints) + " float\n").getBytes());
             for (int i = 0; i < numPoints; i++) {
-
-                writer.write(String.valueOf(mPoseTimestampBuffer.get(i)) + " ");
-                if((i+1)%9 ==0) {
-                    writer.write("\n");
-                }
+                out.writeFloat(mPoseTimestampBuffer.get(i));
             }
 
-            writer.close();
+            out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
