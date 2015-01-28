@@ -126,7 +126,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private int mNumberOfFilesWritten;
     private Boolean mTimeToTakeSnap;
     private Boolean mAutoMode;
-    private double myDateNumber;
+    private String mNowTimeString;
     private ArrayList<float[]> mPosePositionBuffer;
     private ArrayList<float[]> mPoseOrientationBuffer;
     private ArrayList<Float> mPoseTimestampBuffer;
@@ -211,8 +211,6 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mWaitingTextView.setText(R.string.waitInitialize);
         mWaitingLinearLayout = (LinearLayout) findViewById(R.id.waitingBarLayout);
         mWaitingLinearLayout.setVisibility(View.VISIBLE);
-        // TODO: Find a place in code to do: "hide the initialization progress bar" after init
-
 
         mFilename = "";
         mNumberOfFilesWritten = 0;
@@ -567,7 +565,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             int minute = rightNow.get(Calendar.MINUTE);
             int sec = rightNow.get(Calendar.SECOND);
             int milliSec = rightNow.get(Calendar.MILLISECOND);
-            myDateNumber = 10000*hour + 100*minute + sec + milliSec/1000.0;
+            mNowTimeString = "" + (int)(1000000 * hour + 10000 * minute + 100 * sec +
+                    (float)milliSec / 10.0);
             mNumberOfFilesWritten = 0;
             // Enable snapshot button
             mTakeSnapButton.setEnabled(true);
@@ -598,8 +597,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                     mPoseTimestampBuffer.clear();
 
                     // Zip all the files from this sequence
-                    String zipFilename = mSaveDirAbsPath + "TangoData_" +
-                            (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
+                    String zipFilename = mSaveDirAbsPath + "TangoData_" + mNowTimeString +
                             "_" + mFilenameBuffer.size() + "files.zip";
                     String[] fileList = mFilenameBuffer.toArray(new String[mFilenameBuffer.size()]);
                     ZipWriter zipper = new ZipWriter(fileList, zipFilename);
@@ -656,8 +654,9 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 Log.i(TAG, "Folder: \"" + mSaveDirAbsPath + "\" created\n");
             }
         }
-        String nowTime = (int)myDateNumber + "" + (int)((myDateNumber%1)*100);
-        mFilename = "pc_" + nowTime + "_" + String.format("%03d", mNumberOfFilesWritten) + ".vtk";
+
+        mFilename = "pc_" + mNowTimeString + "_" + String.format("%03d", mNumberOfFilesWritten) +
+                ".vtk";
         mFilenameBuffer.add(mSaveDirAbsPath + mFilename);
         File file = new File(dir, mFilename);
 
@@ -711,8 +710,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
                 Log.i(TAG, "Folder: \"" + mSaveDirAbsPath + "\" created\n");
             }
         }
-        String poseFileName = "pc_" +  (int)myDateNumber + "" + (int)((myDateNumber%1)*100) +
-                "_poses.vtk";
+        String poseFileName = "pc_" + mNowTimeString + "_poses.vtk";
         mFilenameBuffer.add(mSaveDirAbsPath + poseFileName);
         File file = new File(dir, poseFileName);
 
