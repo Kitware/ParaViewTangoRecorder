@@ -123,6 +123,8 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private TextView mWaitingTextView;
     private LinearLayout mWaitingLinearLayout;
 
+    private static final String mMainDirPath = Environment.getExternalStorageDirectory()
+            .getAbsolutePath() + "/Tango/";
     private static final String mSaveDirAbsPath = Environment.getExternalStorageDirectory()
             .getAbsolutePath() + "/Tango/MyPointCloudData/";
     private String mFilename;
@@ -650,6 +652,15 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         myBuffer.order(ByteOrder.LITTLE_ENDIAN);
         myBuffer.put(buffer, xyzIj.xyzParcelFileDescriptorOffset, myBuffer.capacity());
 
+
+        File mainDir = new File(mMainDirPath);
+        if(!mainDir.exists()) {
+            boolean created = mainDir.mkdir();
+            if (created) {
+                Log.i(TAG, "Folder: \"" + mMainDirPath + "\" created\n");
+            }
+        }
+
         File dir = new File(mSaveDirAbsPath);
         if(!dir.exists()) {
             boolean created = dir.mkdir();
@@ -702,6 +713,14 @@ public class PointCloudActivity extends Activity implements OnClickListener {
 
     // This function writes the pose data and timestamps to .vtk files in binary
     private void writePoseToFile(int numPoints) {
+
+        File mainDir = new File(mMainDirPath);
+        if(!mainDir.exists()) {
+            boolean created = mainDir.mkdir();
+            if (created) {
+                Log.i(TAG, "Folder: \"" + mMainDirPath + "\" created\n");
+            }
+        }
 
         File dir = new File(mSaveDirAbsPath);
         if(!dir.exists()) {
