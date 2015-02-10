@@ -1,0 +1,4 @@
+#!/bin/sh
+
+python python_filter_generator.py ApplyPoseTransformToPointCloud.py ApplyPoseTransformToPointCloud.xml
+python python_filter_generator.py QuaternionToOrientationFrame.py QuaternionToOrientationFrame.xml
