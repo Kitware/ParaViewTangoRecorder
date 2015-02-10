@@ -11,7 +11,7 @@
 
 Name = 'ApplyPoseTransformToPointCloud'
 Label = 'Apply Pose To PointCloud'
-Help = ''
+Help = 'This applies the device pose point cloud at each timestep'
 
 
 # Still don't know if these lines are actually necessary
@@ -20,15 +20,7 @@ InputDataType1 = 'vtkPolyData'
 InputDataType2 = 'vtkPolyData'
 # OutputDataType = 'vtkPolyData' # omit this line to use 'same as input'
 
-Properties = dict(
-    # test_bool = True,
-    # test_int = 123,
-    # test_int_vector = [1, 2, 3],
-    # test_double = 1.23,
-    # test_double_vector = [1.1, 2.2, 3.3],
-    # test_string = 'string value',
-    )
-
+Properties = {}
 
 def RequestData():
 
@@ -148,3 +140,62 @@ def RequestData():
 
     pdo.ShallowCopy(vtkTFMFilter.GetOutput())
 
+
+def RequestInformation():
+    import vtk
+
+    ############# Get I/O #############
+
+    # Get the two inputs, and the output
+    polyDataA = self.GetInputDataObject(0, 0)
+    polyDataB = self.GetInputDataObject(0, 1)
+    pdo = self.GetPolyDataOutput()
+
+    # If only one input is given, raise an exception
+    if polyDataA is None or polyDataB is None:
+        raise Exception("\nThis filter takes 2 inputs:\n"
+                        "Point Cloud Data files: pc_HHMMSSDD_NNN.vtk\n"
+                        "Pose Data file: pc_HHMMSSDD_poses.vtk\n"
+                        "Note that ParaView groups all the Point Cloud Data files in one\n")
+
+    # Initialize vtkPolyData for point cloud data (PC) and pose data (P)
+    polyData_PC = vtk.vtkPolyData()
+    polyData_P = vtk.vtkPolyData()
+
+    if polyDataA.GetFieldData().GetArray("timestamp") is not None and \
+            polyDataB.GetPointData().GetArray("timestamp") is not None:
+        pointCloudPortIndex = 0
+    else:
+        if polyDataB.GetFieldData().GetArray("timestamp") is not None and \
+                polyDataA.GetPointData().GetArray("timestamp") is not None:
+            pointCloudPortIndex = 1
+        else:   # If none of the configuration above is met, raise an exception
+            raise Exception("\nOne or both of the inputs don't have a \"timestamp\" Point/Field Data\n"
+                            "Is this data coming from the \"Paraview Tango Recorder\" app ?\n"
+                            "The input that ends with \'_poses.vtk\" must have a \"timestamp\" PointData\n"
+                            "The input that ends with \'*.vtk\" must have a \"timestamp\" FieldData\n")
+
+    # If the pose data doesn't contain an "orientation" PointData array, raise an exception
+    if polyData_P.GetPointData().GetArray("orientation") is None:
+        raise Exception("\nThe Pose file (that ends with \"_poses.vtk\") has no dataArray called \"orientation\"\n")
+
+    def setOutputTimesteps ( algorithm , timesteps ):
+        "helper routine to set timestep information"
+        executive = algorithm . GetExecutive ()
+        outInfo = executive . GetOutputInformation (0)
+        outInfo.Remove ( executive.TIME_STEPS () )
+        for timestep in timesteps :
+            outInfo . Append ( executive . TIME_STEPS () , timestep )
+
+            outInfo . Remove ( executive . TIME_RANGE () )
+            outInfo . Append ( executive . TIME_RANGE () , timesteps [0])
+            outInfo . Append ( executive . TIME_RANGE () , timesteps [ -1])
+
+    def getInputTimesteps( algorithm, portindex):
+        "helper routine to set timestep information"
+        executive = algorithm . GetExecutive ()
+        inInfo = executive . GetInputInformation (0, portindex)
+        return inInfo.Get(executive.TIME_STEPS())
+
+    myrange = getInputTimesteps(self, pointCloudPortIndex)
+    setOutputTimesteps(self, myrange)
