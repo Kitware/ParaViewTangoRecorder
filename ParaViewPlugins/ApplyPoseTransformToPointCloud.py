@@ -175,10 +175,6 @@ def RequestInformation():
                             "The input that ends with \'_poses.vtk\" must have a \"timestamp\" PointData\n"
                             "The input that ends with \'*.vtk\" must have a \"timestamp\" FieldData\n")
 
-    # If the pose data doesn't contain an "orientation" PointData array, raise an exception
-    if polyData_P.GetPointData().GetArray("orientation") is None:
-        raise Exception("\nThe Pose file (that ends with \"_poses.vtk\") has no dataArray called \"orientation\"\n")
-
     def setOutputTimesteps ( algorithm , timesteps ):
         "helper routine to set timestep information"
         executive = algorithm . GetExecutive ()
