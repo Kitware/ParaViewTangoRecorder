@@ -2,3 +2,4 @@
 
 python python_filter_generator.py ApplyPoseTransformToPointCloud.py ApplyPoseTransformToPointCloud.xml
 python python_filter_generator.py QuaternionToOrientationFrame.py QuaternionToOrientationFrame.xml
+python python_filter_generator.py AccumulatePointClouds.py AccumulatePointClouds.xml
