@@ -32,7 +32,7 @@ def RequestData():
 
     inp = inputs[0]
     if self.UpdateTimeIndex < len(self.TimeValues) - 1:
-        print self.UpdateTimeIndex
+        #print self.UpdateTimeIndex
 
         # If we are not done, ask the pipeline to re-execute us.
         self.UpdateTimeIndex += 1
@@ -86,6 +86,11 @@ def RequestInformation():
     return 1
 
 def RequestUpdateExtent():
+    try:
+        x = self.UpdateTimeIndex
+    except AttributeError:
+        self.UpdateTimeIndex = 0
+
     info = self.GetExecutive().GetInputInformation(0,0)
     info.Set(vtk.vtkStreamingDemandDrivenPipeline.UPDATE_TIME_STEP(),
              self.TimeValues[self.UpdateTimeIndex])

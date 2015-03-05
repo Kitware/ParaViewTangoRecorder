@@ -113,16 +113,14 @@ def RequestData():
     translation = pointArray_P.GetPoint(closestIndex)
     rotMatrix[0:3, 3] = translation
 
+    ############# Read the Camera2Device transform #############
 
-    ############# Create the Camera2Device transform #############
+    # Array of 16 values
+    raw_Cam2Dev_TFM = polyData_P.GetFieldData().GetArray("Cam2Dev_transform").GetTuple(0)
 
-    # Camera 2 Device extrinsic translations (Hardcoded, extracted from the device)
-
-    Camera2DeviceTFM = np.array([[0.9999981, 0.0018835695, 4.7361093e-5, 0.061678894],
-                                 [0.0018196433, -0.9719693, 0.23510009, 0.0036567878],
-                                 [4.8883393e-4, -0.23509958, -0.9719711, -0.0041324375],
-                                 [0.0, 0.0, 0.0, 1.0]])
-    # print Camera2DeviceTFM
+    # Reshape the matrix
+    Camera2DeviceTFM = np.array(raw_Cam2Dev_TFM).reshape((4,4), order='F')
+    #print "Cam2DevTFM_read_np_reshaped =\n" + str(Camera2DeviceTFM)
 
 
     ############# Apply the transforms to the point cloud #############

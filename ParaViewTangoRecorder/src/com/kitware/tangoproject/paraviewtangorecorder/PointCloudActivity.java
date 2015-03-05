@@ -35,6 +35,7 @@ import com.google.atap.tangoservice.TangoInvalidException;
 import com.google.atap.tangoservice.TangoOutOfDateException;
 import com.google.atap.tangoservice.TangoPoseData;
 import com.google.atap.tangoservice.TangoXyzIjData;
+import com.kitware.tangoutils.ModelMatCalculator;
 
 import android.app.Activity;
 import android.content.Context;
@@ -43,6 +44,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.Uri;
 import android.opengl.GLSurfaceView;
+import android.opengl.Matrix;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
@@ -136,6 +138,7 @@ public class PointCloudActivity extends Activity implements OnClickListener {
     private ArrayList<float[]> mPoseOrientationBuffer;
     private ArrayList<Float> mPoseTimestampBuffer;
     private ArrayList<String> mFilenameBuffer;
+    private float[] cam2dev_Transform;
     private int mNumPoseInSequence;
     boolean mIsRecording;
     private int mXyzIjCallbackCount;
@@ -357,6 +360,34 @@ public class PointCloudActivity extends Activity implements OnClickListener {
         mRenderer.getModelMatCalculator().SetColorCamera2IMUMatrix(
                 color2IMUPose.getTranslationAsFloats(),
                 color2IMUPose.getRotationAsFloats());
+
+        // Get the Camera2Device transform
+        float[] rot_Dev2IMU = device2IMUPose.getRotationAsFloats();
+        float[] trans_Dev2IMU = device2IMUPose.getTranslationAsFloats();
+        float[] rot_Cam2IMU = color2IMUPose.getRotationAsFloats();
+        float[] trans_Cam2IMU = color2IMUPose.getTranslationAsFloats();
+
+        float[] dev2IMU = new float[16];
+        Matrix.setIdentityM(dev2IMU, 0);
+        dev2IMU = ModelMatCalculator.quaternionMatrixOpenGL(rot_Dev2IMU);
+        dev2IMU[12] += trans_Dev2IMU[0];
+        dev2IMU[13] += trans_Dev2IMU[1];
+        dev2IMU[14] += trans_Dev2IMU[2];
+
+        float[] IMU2dev = new float[16];
+        Matrix.setIdentityM(IMU2dev, 0);
+        Matrix.invertM(IMU2dev, 0, dev2IMU, 0);
+
+        float[] cam2IMU = new float[16];
+        Matrix.setIdentityM(cam2IMU, 0);
+        cam2IMU = ModelMatCalculator.quaternionMatrixOpenGL(rot_Cam2IMU);
+        cam2IMU[12] += trans_Cam2IMU[0];
+        cam2IMU[13] += trans_Cam2IMU[1];
+        cam2IMU[14] += trans_Cam2IMU[2];
+
+        cam2dev_Transform = new float[16];
+        Matrix.setIdentityM(cam2dev_Transform, 0);
+        Matrix.multiplyMM(cam2dev_Transform, 0, IMU2dev, 0, cam2IMU, 0);
     }
 
     private void setTangoListeners() {
@@ -753,6 +784,12 @@ public class PointCloudActivity extends Activity implements OnClickListener {
             out.writeInt(numPoints);
             for (int i = 0; i < numPoints; i++) {
                 out.writeInt(i);
+            }
+
+            out.write(("\nFIELD FieldData 1\n" +
+                    "Cam2Dev_transform 16 1 float\n").getBytes());
+            for (int i = 0; i < cam2dev_Transform.length; i++) {
+                out.writeFloat(cam2dev_Transform[i]);
             }
 
             out.write(("\nPOINT_DATA " + String.valueOf(numPoints) + "\n" +
